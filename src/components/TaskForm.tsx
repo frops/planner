@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useLocalStorage } from '@/components/LocalStorageProvider';
+import { useLocalStorage } from './LocalStorageProvider';
+import { startOfWeek, endOfWeek, format } from 'date-fns';
 
 interface TaskFormProps {
     projectId?: number | null;
@@ -10,11 +11,15 @@ interface TaskFormProps {
 
 export function TaskForm({ projectId, onSuccess }: TaskFormProps) {
     const { addTask } = useLocalStorage();
+    const today = new Date();
+    const defaultStartDate = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    const defaultEndDate = format(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+
     const [formData, setFormData] = useState({
         title: '',
         code: '',
-        startDate: '',
-        endDate: '',
+        startDate: defaultStartDate,
+        endDate: defaultEndDate,
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +33,7 @@ export function TaskForm({ projectId, onSuccess }: TaskFormProps) {
         }
 
         try {
-            await addTask({
+            const task = await addTask({
                 ...formData,
                 projectId: projectId ?? null,
             });
@@ -36,13 +41,14 @@ export function TaskForm({ projectId, onSuccess }: TaskFormProps) {
             setFormData({
                 title: '',
                 code: '',
-                startDate: '',
-                endDate: '',
+                startDate: defaultStartDate,
+                endDate: defaultEndDate,
             });
 
             onSuccess?.();
         } catch (error) {
             console.error('Error creating task:', error);
+            alert('Failed to create task. Please try again.');
         }
     };
 
