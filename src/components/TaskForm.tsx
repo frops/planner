@@ -5,9 +5,10 @@ import { useLocalStorage } from '@/components/LocalStorageProvider';
 
 interface TaskFormProps {
     projectId?: number | null;
+    onSuccess?: () => void;
 }
 
-export function TaskForm({ projectId }: TaskFormProps) {
+export function TaskForm({ projectId, onSuccess }: TaskFormProps) {
     const { addTask } = useLocalStorage();
     const [formData, setFormData] = useState({
         title: '',
@@ -38,6 +39,8 @@ export function TaskForm({ projectId }: TaskFormProps) {
                 startDate: '',
                 endDate: '',
             });
+
+            onSuccess?.();
         } catch (error) {
             console.error('Error creating task:', error);
         }
