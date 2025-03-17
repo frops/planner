@@ -14,7 +14,7 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
     const { tasks } = useLocalStorage();
 
     const periods = viewMode === 'weeks'
-        ? eachWeekOfInterval({ start: startDate, end: endDate })
+        ? eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 })
         : eachMonthOfInterval({ start: startDate, end: endDate });
 
     const today = new Date();
@@ -49,8 +49,8 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                 minWidth: `${periods.length * 200}px`
             }}>
                 {periods.map((period) => {
-                    const periodStart = viewMode === 'weeks' ? startOfWeek(period) : startOfMonth(period);
-                    const periodEnd = viewMode === 'weeks' ? endOfWeek(period) : endOfMonth(period);
+                    const periodStart = viewMode === 'weeks' ? startOfWeek(period, { weekStartsOn: 1 }) : startOfMonth(period);
+                    const periodEnd = viewMode === 'weeks' ? endOfWeek(period, { weekStartsOn: 1 }) : endOfMonth(period);
                     const formatStr = viewMode === 'weeks' ? 'MMM d' : 'MMMM yyyy';
 
                     return (
