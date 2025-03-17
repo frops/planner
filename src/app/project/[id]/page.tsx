@@ -1,40 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { Timeline } from '@/components/Timeline';
 import { TaskForm } from '@/components/TaskForm';
 import Link from 'next/link';
-
-interface Project {
-    id: number;
-    name: string;
-}
+import { useLocalStorage } from '@/components/LocalStorageProvider';
 
 export default function ProjectPage({ params }: { params: { id: string } }) {
-    const [project, setProject] = useState<Project | null>(null);
+    const { projects } = useLocalStorage();
     const [currentDate, setCurrentDate] = useState(new Date());
     const startDate = startOfMonth(currentDate);
     const endDate = endOfMonth(currentDate);
 
-    useEffect(() => {
-        fetchProject();
-    }, [params.id]);
-
-    const fetchProject = async () => {
-        try {
-            const response = await fetch(`/api/projects/${params.id}`);
-            const data = await response.json();
-            setProject(data);
-        } catch (error) {
-            console.error('Error fetching project:', error);
-        }
-    };
+    const project = projects.find(p => p.id === parseInt(params.id));
 
     if (!project) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-xl text-gray-600">Loading...</div>
+                <div className="text-xl text-gray-600">Project not found</div>
             </div>
         );
     }
@@ -77,7 +61,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                                 </button>
                             </div>
                         </div>
-                        <Timeline startDate={startDate} endDate={endDate} />
+                        <Timeline startDate={startDate} endDate={endDate} projectId={project.id} />
                     </div>
                 </div>
             </div>

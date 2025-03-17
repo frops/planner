@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
-import logger from '@/utils/logger';
+
+let projects: any[] = [];
+
+// Load initial data if running in browser
+if (typeof window !== 'undefined') {
+    const storedProjects = localStorage.getItem('projects');
+    if (storedProjects) {
+        projects = JSON.parse(storedProjects);
+    }
+}
 
 export async function GET() {
-    try {
-        const projects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
-        return NextResponse.json(projects);
-    } catch (error) {
-        logger.error('Error fetching projects:', error);
-        return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });
-    }
+    return NextResponse.json(projects);
 }
 
 export async function POST(request: Request) {
@@ -20,13 +22,22 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Name is required' }, { status: 400 });
         }
 
-        const result = db.prepare('INSERT INTO projects (name) VALUES (?)').run(name);
-        const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
+        const newProject = {
+            id: Date.now(),
+            name,
+            createdAt: new Date().toISOString()
+        };
 
-        logger.info('Created new project:', { id: project.id, name: project.name });
-        return NextResponse.json(project);
+        projects.push(newProject);
+
+        // Save to localStorage if running in browser
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('projects', JSON.stringify(projects));
+        }
+
+        return NextResponse.json(newProject);
     } catch (error) {
-        logger.error('Error creating project:', error);
+        console.error('Error creating project:', error);
         return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });
     }
 } 

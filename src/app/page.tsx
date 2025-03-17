@@ -1,55 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns';
-import { Timeline } from '../components/Timeline';
-import { TaskForm } from '../components/TaskForm';
-import { TaskList } from '@/components/TaskList';
-
-interface Project {
-    id: number;
-    name: string;
-}
+import { useLocalStorage } from '@/components/LocalStorageProvider';
 
 export default function Home() {
-    const [projects, setProjects] = useState<Project[]>([]);
+    const { projects, addProject } = useLocalStorage();
     const [newProjectName, setNewProjectName] = useState('');
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const startDate = startOfMonth(currentDate);
-    const endDate = endOfMonth(currentDate);
-
-    useEffect(() => {
-        fetchProjects();
-    }, []);
-
-    const fetchProjects = async () => {
-        try {
-            const response = await fetch('/api/projects');
-            const data = await response.json();
-            setProjects(data);
-        } catch (error) {
-            console.error('Error fetching projects:', error);
-        }
-    };
 
     const createProject = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newProjectName.trim()) return;
 
         try {
-            const response = await fetch('/api/projects', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name: newProjectName }),
-            });
-
-            if (response.ok) {
-                setNewProjectName('');
-                fetchProjects();
-            }
+            await addProject({ name: newProjectName });
+            setNewProjectName('');
         } catch (error) {
             console.error('Error creating project:', error);
         }
@@ -97,10 +62,6 @@ export default function Home() {
                             ))}
                         </div>
                     </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                    <TaskList />
                 </div>
             </div>
         </main>

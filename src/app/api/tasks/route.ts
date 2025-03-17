@@ -1,28 +1,24 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
-import logger from '@/utils/logger';
+
+let tasks: any[] = [];
+
+// Load initial data if running in browser
+if (typeof window !== 'undefined') {
+    const storedTasks = localStorage.getItem('tasks');
+    if (storedTasks) {
+        tasks = JSON.parse(storedTasks);
+    }
+}
 
 export async function GET(request: Request) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const projectId = searchParams.get('projectId');
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get('projectId');
 
-        let query = 'SELECT * FROM tasks';
-        let params: any[] = [];
-
-        if (projectId) {
-            query += ' WHERE project_id = ?';
-            params.push(projectId);
-        }
-
-        query += ' ORDER BY start_date ASC';
-
-        const tasks = db.prepare(query).all(...params);
-        return NextResponse.json(tasks);
-    } catch (error) {
-        logger.error('Error fetching tasks:', error);
-        return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
+    if (projectId) {
+        return NextResponse.json(tasks.filter(task => task.projectId === parseInt(projectId)));
     }
+
+    return NextResponse.json(tasks);
 }
 
 export async function POST(request: Request) {
@@ -39,23 +35,54 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid code format' }, { status: 400 });
         }
 
-        const result = db.prepare(`
-      INSERT INTO tasks (project_id, title, code, start_date, end_date)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(projectId, title, code, startDate, endDate);
+        const newTask = {
+            id: Date.now(),
+            title,
+            code,
+            startDate,
+            endDate,
+            projectId: projectId ? parseInt(projectId) : null,
+            createdAt: new Date().toISOString()
+        };
 
-        const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid);
+        tasks.push(newTask);
 
-        logger.info('Created new task:', {
-            id: task.id,
-            title: task.title,
-            code: task.code,
-            projectId: task.project_id
-        });
+        // Save to localStorage if running in browser
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
 
-        return NextResponse.json(task);
+        return NextResponse.json(newTask);
     } catch (error) {
-        logger.error('Error creating task:', error);
+        console.error('Error creating task:', error);
         return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
+        }
+
+        const taskIndex = tasks.findIndex(task => task.id === parseInt(id));
+        if (taskIndex === -1) {
+            return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+        }
+
+        tasks.splice(taskIndex, 1);
+
+        // Save to localStorage if running in browser
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting task:', error);
+        return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
     }
 } 

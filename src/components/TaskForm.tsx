@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocalStorage } from '@/components/LocalStorageProvider';
 
 interface TaskFormProps {
-    projectId?: number;
+    projectId?: number | null;
 }
 
 export function TaskForm({ projectId }: TaskFormProps) {
+    const { addTask } = useLocalStorage();
     const [formData, setFormData] = useState({
         title: '',
         code: '',
@@ -25,25 +27,17 @@ export function TaskForm({ projectId }: TaskFormProps) {
         }
 
         try {
-            const response = await fetch('/api/tasks', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ...formData,
-                    projectId,
-                }),
+            await addTask({
+                ...formData,
+                projectId: projectId ?? null,
             });
 
-            if (response.ok) {
-                setFormData({
-                    title: '',
-                    code: '',
-                    startDate: '',
-                    endDate: '',
-                });
-            }
+            setFormData({
+                title: '',
+                code: '',
+                startDate: '',
+                endDate: '',
+            });
         } catch (error) {
             console.error('Error creating task:', error);
         }

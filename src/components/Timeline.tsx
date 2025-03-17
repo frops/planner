@@ -1,39 +1,23 @@
 'use client';
 
 import { format, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
-import { useState, useEffect } from 'react';
-
-interface Task {
-    id: number;
-    title: string;
-    code: string;
-    startDate: string;
-    endDate: string;
-}
+import { useLocalStorage } from '@/components/LocalStorageProvider';
 
 interface TimelineProps {
     startDate: Date;
     endDate: Date;
+    projectId?: number;
 }
 
-export function Timeline({ startDate, endDate }: TimelineProps) {
-    const [tasks, setTasks] = useState<Task[]>([]);
+export function Timeline({ startDate, endDate, projectId }: TimelineProps) {
+    const { tasks } = useLocalStorage();
+
     const weeks = eachWeekOfInterval({ start: startDate, end: endDate });
     const today = new Date();
 
-    useEffect(() => {
-        fetchTasks();
-    }, [startDate, endDate]);
-
-    const fetchTasks = async () => {
-        try {
-            const response = await fetch('/api/tasks');
-            const data = await response.json();
-            setTasks(data);
-        } catch (error) {
-            console.error('Error fetching tasks:', error);
-        }
-    };
+    const filteredTasks = projectId
+        ? tasks.filter(task => task.projectId === projectId)
+        : tasks;
 
     const getTaskColor = (code: string) => {
         const team = code.split('-')[0];
@@ -68,7 +52,7 @@ export function Timeline({ startDate, endDate }: TimelineProps) {
                             </div>
 
                             {/* Tasks for this week */}
-                            {tasks
+                            {filteredTasks
                                 .filter((task) => {
                                     const taskStart = new Date(task.startDate);
                                     const taskEnd = new Date(task.endDate);
