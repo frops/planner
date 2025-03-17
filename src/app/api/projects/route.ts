@@ -1,43 +1,37 @@
 import { NextResponse } from 'next/server';
-
-let projects: any[] = [];
-
-// Load initial data if running in browser
-if (typeof window !== 'undefined') {
-    const storedProjects = localStorage.getItem('projects');
-    if (storedProjects) {
-        projects = JSON.parse(storedProjects);
-    }
-}
+import { prisma } from '@/lib/db';
 
 export async function GET() {
-    return NextResponse.json(projects);
+    try {
+        const projects = await prisma.project.findMany({
+            include: {
+                tasks: true,
+            },
+        });
+        return NextResponse.json(projects);
+    } catch (error) {
+        console.error('Error fetching projects:', error);
+        return NextResponse.json(
+            { error: 'Failed to fetch projects' },
+            { status: 500 }
+        );
+    }
 }
 
 export async function POST(request: Request) {
     try {
-        const { name } = await request.json();
-
-        if (!name) {
-            return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-        }
-
-        const newProject = {
-            id: Date.now(),
-            name,
-            createdAt: new Date().toISOString()
-        };
-
-        projects.push(newProject);
-
-        // Save to localStorage if running in browser
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('projects', JSON.stringify(projects));
-        }
-
-        return NextResponse.json(newProject);
+        const data = await request.json();
+        const project = await prisma.project.create({
+            data: {
+                name: data.name,
+            },
+        });
+        return NextResponse.json(project);
     } catch (error) {
         console.error('Error creating project:', error);
-        return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });
+        return NextResponse.json(
+            { error: 'Failed to create project' },
+            { status: 500 }
+        );
     }
 } 

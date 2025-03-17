@@ -6,6 +6,7 @@ interface Project {
     id: number;
     name: string;
     createdAt: string;
+    tasks: Task[];
 }
 
 interface Task {
@@ -16,13 +17,14 @@ interface Task {
     endDate: string;
     projectId: number | null;
     createdAt: string;
+    project?: Project;
 }
 
 interface LocalStorageContextType {
     projects: Project[];
     tasks: Task[];
-    addProject: (project: Omit<Project, 'id' | 'createdAt'>) => Promise<Project>;
-    addTask: (task: Omit<Task, 'id' | 'createdAt'>) => Promise<Task>;
+    addProject: (project: Omit<Project, 'id' | 'createdAt' | 'tasks'>) => Promise<Project>;
+    addTask: (task: Omit<Task, 'id' | 'createdAt' | 'project'>) => Promise<Task>;
     deleteTask: (id: number) => Promise<void>;
 }
 
@@ -33,50 +35,77 @@ export function LocalStorageProvider({ children }: { children: React.ReactNode }
     const [tasks, setTasks] = useState<Task[]>([]);
 
     useEffect(() => {
-        // Load initial data from localStorage
-        const storedProjects = localStorage.getItem('projects');
-        const storedTasks = localStorage.getItem('tasks');
+        // Load initial data from API
+        const fetchData = async () => {
+            try {
+                const [projectsRes, tasksRes] = await Promise.all([
+                    fetch('/api/projects'),
+                    fetch('/api/tasks')
+                ]);
 
-        if (storedProjects) {
-            setProjects(JSON.parse(storedProjects));
-        }
-        if (storedTasks) {
-            setTasks(JSON.parse(storedTasks));
-        }
-    }, []);
+                if (projectsRes.ok && tasksRes.ok) {
+                    const [projectsData, tasksData] = await Promise.all([
+                        projectsRes.json(),
+                        tasksRes.json()
+                    ]);
 
-    const addProject = async (projectData: Omit<Project, 'id' | 'createdAt'>) => {
-        const newProject: Project = {
-            ...projectData,
-            id: Date.now(),
-            createdAt: new Date().toISOString(),
+                    setProjects(projectsData);
+                    setTasks(tasksData);
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
         };
 
-        const updatedProjects = [...projects, newProject];
-        setProjects(updatedProjects);
-        localStorage.setItem('projects', JSON.stringify(updatedProjects));
+        fetchData();
+    }, []);
 
+    const addProject = async (projectData: Omit<Project, 'id' | 'createdAt' | 'tasks'>) => {
+        const response = await fetch('/api/projects', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(projectData),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to create project');
+        }
+
+        const newProject = await response.json();
+        setProjects(prev => [...prev, newProject]);
         return newProject;
     };
 
-    const addTask = async (taskData: Omit<Task, 'id' | 'createdAt'>) => {
-        const newTask: Task = {
-            ...taskData,
-            id: Date.now(),
-            createdAt: new Date().toISOString(),
-        };
+    const addTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'project'>) => {
+        const response = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(taskData),
+        });
 
-        const updatedTasks = [...tasks, newTask];
-        setTasks(updatedTasks);
-        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+        if (!response.ok) {
+            throw new Error('Failed to create task');
+        }
 
+        const newTask = await response.json();
+        setTasks(prev => [...prev, newTask]);
         return newTask;
     };
 
     const deleteTask = async (id: number) => {
-        const updatedTasks = tasks.filter(task => task.id !== id);
-        setTasks(updatedTasks);
-        localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+        const response = await fetch(`/api/tasks?id=${id}`, {
+            method: 'DELETE',
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete task');
+        }
+
+        setTasks(prev => prev.filter(task => task.id !== id));
     };
 
     return (
