@@ -75,9 +75,6 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                                         >
                                             <div className="font-mono text-xs">{task.code}</div>
                                             <div className="text-sm font-medium truncate">{task.title}</div>
-                                            <div className="text-xs opacity-75">
-                                                {format(new Date(task.startDate), 'MMM d')} - {format(new Date(task.endDate), 'MMM d')}
-                                            </div>
                                         </div>
                                     ))}
                             </div>
