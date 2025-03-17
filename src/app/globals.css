@@ -11,3 +11,28 @@ body {
     color: rgb(var(--foreground-rgb));
     background: rgb(var(--background-rgb));
 }
+
+/* Custom styles */
+.timeline-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background-color: #e5e7eb;
+    padding: 1px;
+    border-radius: 0.5rem;
+}
+
+.timeline-cell {
+    background-color: white;
+    padding: 1rem;
+    min-height: 100px;
+}
+
+.today-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #ef4444;
+    z-index: 10;
+}

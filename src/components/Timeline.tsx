@@ -49,20 +49,20 @@ export function Timeline({ startDate, endDate }: TimelineProps) {
         <div className="relative">
             {/* Today line */}
             <div
-                className="absolute h-full w-0.5 bg-red-500 z-10"
+                className="today-line"
                 style={{
                     left: `${((today.getTime() - startDate.getTime()) / (endDate.getTime() - startDate.getTime())) * 100}%`,
                 }}
             />
 
             {/* Timeline grid */}
-            <div className="grid grid-cols-7 gap-1">
+            <div className="timeline-grid">
                 {weeks.map((week) => {
                     const weekStart = startOfWeek(week);
                     const weekEnd = endOfWeek(week);
 
                     return (
-                        <div key={weekStart.toISOString()} className="border p-2 min-h-[100px]">
+                        <div key={weekStart.toISOString()} className="timeline-cell">
                             <div className="text-sm font-semibold mb-2">
                                 {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d')}
                             </div>
