@@ -56,8 +56,11 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
     // Определяем ширину одного периода в пикселях
     const periodWidth = 200;
 
+    // Вычисляем высоту контейнера задач
+    const taskContainerHeight = filteredTasks.length * 30 + 10; // 30px на задачу + отступ
+
     return (
-        <div className="relative">
+        <div className="relative overflow-x-auto">
             {/* Today line */}
             <div
                 className="absolute top-0 bottom-0 w-px bg-red-500 z-10"
@@ -67,10 +70,14 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
             />
 
             {/* Timeline grid */}
-            <div className="grid relative" style={{
-                gridTemplateColumns: `repeat(${periods.length}, minmax(${periodWidth}px, 1fr))`,
-                minWidth: `${periods.length * periodWidth}px`
-            }}>
+            <div
+                className="grid relative"
+                style={{
+                    gridTemplateColumns: `repeat(${periods.length}, minmax(${periodWidth}px, 1fr))`,
+                    minWidth: `${periods.length * periodWidth}px`,
+                    minHeight: `${taskContainerHeight + 50}px` // Добавляем общую высоту для учета заголовков
+                }}
+            >
                 {periods.map((period, index) => {
                     const periodStart = viewMode === 'weeks' ? startOfWeek(period, { weekStartsOn: 1 }) : startOfMonth(period);
                     const periodEnd = viewMode === 'weeks' ? endOfWeek(period, { weekStartsOn: 1 }) : endOfMonth(period);
@@ -90,7 +97,13 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                 })}
 
                 {/* Tasks container */}
-                <div className="absolute w-full" style={{ top: '45px' }}>
+                <div
+                    className="absolute w-full"
+                    style={{
+                        top: '45px',
+                        height: `${taskContainerHeight}px`
+                    }}
+                >
                     {filteredTasks.map((task, taskIndex) => {
                         const taskStart = new Date(task.startDate);
                         const taskEnd = new Date(task.endDate);
