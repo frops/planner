@@ -1,6 +1,6 @@
 'use client';
 
-import { format, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, differenceInDays } from 'date-fns';
+import { format, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, differenceInMilliseconds, isSameDay, eachDayOfInterval, isEqual } from 'date-fns';
 import { useLocalStorage } from '@/components/LocalStorageProvider';
 import { useEffect } from 'react';
 
@@ -35,6 +35,33 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
     const visibleRangeEnd = periodRanges[periodRanges.length - 1].periodEnd;
     const totalVisibleDays = differenceInDays(visibleRangeEnd, visibleRangeStart) + 1;
 
+    // Получаем все дни в видимом диапазоне для режима недель
+    const allDaysInRange = viewMode === 'weeks'
+        ? eachDayOfInterval({ start: visibleRangeStart, end: visibleRangeEnd })
+        : [];
+
+    // Функция для получения дробного индекса (не целое число, а точное положение внутри периода)
+    const getExactPeriodPosition = (date: Date) => {
+        for (let i = 0; i < periodRanges.length; i++) {
+            const { periodStart, periodEnd } = periodRanges[i];
+
+            if (date >= periodStart && date <= periodEnd) {
+                // Если дата внутри периода, вычисляем дробную часть
+                const periodDuration = differenceInMilliseconds(periodEnd, periodStart);
+                const dateDuration = differenceInMilliseconds(date, periodStart);
+                const fraction = dateDuration / periodDuration;
+
+                return i + fraction;
+            }
+        }
+
+        // Если дата раньше или позже видимого диапазона
+        if (date < visibleRangeStart) return 0;
+        if (date > visibleRangeEnd) return periodRanges.length;
+
+        return -1; // Не должно происходить
+    };
+
     // Отладочный вывод
     useEffect(() => {
         console.log("Visible range:", visibleRangeStart, "to", visibleRangeEnd, "Total days:", totalVisibleDays);
@@ -50,8 +77,8 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                     title: t.title,
                     startDate,
                     endDate,
-                    startPosition: getPositionForDate(startDate),
-                    endPosition: getPositionForDate(endDate)
+                    startPosition: getExactPeriodPosition(startDate),
+                    endPosition: getExactPeriodPosition(endDate)
                 };
             });
             console.log("Tasks debug:", taskDebug);
@@ -76,22 +103,6 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
         return colors[team] || 'bg-gray-500';
     };
 
-    // Функция для определения позиции даты относительно всего диапазона (в процентах)
-    const getPositionForDate = (date: Date) => {
-        // Если дата раньше начала видимого диапазона
-        if (date < visibleRangeStart) {
-            return 0;
-        }
-        // Если дата позже конца видимого диапазона
-        if (date > visibleRangeEnd) {
-            return 100;
-        }
-
-        // Иначе вычисляем позицию в процентах
-        const daysBefore = differenceInDays(date, visibleRangeStart);
-        return (daysBefore / totalVisibleDays) * 100;
-    };
-
     // Определяем ширину одного периода в пикселях
     const periodWidth = 200;
     const totalGridWidth = periods.length * periodWidth;
@@ -99,15 +110,26 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
     // Вычисляем высоту контейнера задач
     const taskContainerHeight = filteredTasks.length * 30 + 10; // 30px на задачу + отступ
 
+    // Рассчитываем позицию сегодняшней линии
+    const todayPosition = getExactPeriodPosition(today);
+    const todayPositionPx = todayPosition * periodWidth;
+
+    // Проверяем, находится ли сегодняшний день в видимом диапазоне
+    const isTodayVisible = today >= visibleRangeStart && today <= visibleRangeEnd;
+
     return (
         <div className="relative overflow-x-auto">
-            {/* Today line */}
-            <div
-                className="absolute top-0 bottom-0 w-px bg-red-500 z-10"
-                style={{
-                    left: `${getPositionForDate(today)}%`,
-                }}
-            />
+            {/* Today line - fixed position relative to content */}
+            {isTodayVisible && (
+                <div
+                    className="absolute top-0 bottom-0 w-px bg-red-500 z-10"
+                    style={{
+                        left: `${todayPositionPx}px`,
+                    }}
+                >
+                    <div className="absolute top-0 -ml-[3px] w-[7px] h-[7px] rounded-full bg-red-500"></div>
+                </div>
+            )}
 
             {/* Timeline grid */}
             <div
@@ -118,10 +140,41 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                     minHeight: `${taskContainerHeight + 50}px` // Добавляем общую высоту для учета заголовков
                 }}
             >
+                {/* Day separator lines for week mode */}
+                {viewMode === 'weeks' && allDaysInRange.map((day, index) => {
+                    // Пропускаем первый день, так как он совпадает с левой границей периода
+                    if (index === 0) return null;
+
+                    const dayPosition = getExactPeriodPosition(day);
+                    const dayPositionPx = dayPosition * periodWidth;
+
+                    return (
+                        <div
+                            key={day.toISOString()}
+                            className="absolute top-0 bottom-0 w-px bg-gray-100 z-5"
+                            style={{
+                                left: `${dayPositionPx}px`,
+                                opacity: '0.5' // Делаем линии еле видимыми
+                            }}
+                        />
+                    );
+                })}
+
                 {periods.map((period, index) => {
                     const periodStart = periodRanges[index].periodStart;
                     const periodEnd = periodRanges[index].periodEnd;
-                    const formatStr = viewMode === 'weeks' ? 'MMM d' : 'MMMM yyyy';
+
+                    // Форматирование заголовков периодов
+                    let headerText = '';
+                    if (viewMode === 'weeks') {
+                        // Формат "Мар 3 - Мар 9", убедимся, что месяц с заглавной буквы
+                        const startFormatted = format(periodStart, 'MMM d');
+                        const endFormatted = format(periodEnd, 'MMM d');
+                        headerText = `${startFormatted} - ${endFormatted}`;
+                    } else {
+                        // Формат "Мар 2024", убедимся, что месяц с заглавной буквы
+                        headerText = format(periodStart, 'MMM yyyy');
+                    }
 
                     return (
                         <div
@@ -129,8 +182,7 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                             className="timeline-cell border-r border-gray-200 p-2"
                         >
                             <div className="text-sm font-semibold mb-2 sticky top-0 bg-white">
-                                {format(periodStart, formatStr)}
-                                {viewMode === 'weeks' && ` - ${format(periodEnd, 'MMM d')}`}
+                                {headerText}
                             </div>
                         </div>
                     );
@@ -153,13 +205,13 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                             return null;
                         }
 
-                        // Calculate position and width as percentage of total grid
-                        const startPos = getPositionForDate(taskStart);
-                        const endPos = getPositionForDate(taskEnd);
+                        // Calculate exact fractional positions
+                        const startPos = getExactPeriodPosition(taskStart);
+                        const endPos = getExactPeriodPosition(taskEnd);
 
-                        // Convert percentage to pixels
-                        const left = (startPos / 100) * totalGridWidth;
-                        const width = ((endPos - startPos) / 100) * totalGridWidth;
+                        // Convert positions to pixels
+                        const left = startPos * periodWidth;
+                        const width = (endPos - startPos) * periodWidth;
 
                         const colorClass = getTaskColor(task.code);
 
