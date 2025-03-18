@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { useState, useEffect } from 'react';
+import { addMonths, subMonths, startOfMonth, endOfMonth, addDays } from 'date-fns';
 import { Timeline } from '@/components/Timeline';
 import { TaskForm } from '@/components/TaskForm';
 import Link from 'next/link';
@@ -9,11 +9,29 @@ import { useLocalStorage } from '@/components/LocalStorageProvider';
 
 export default function ProjectPage({ params }: { params: { id: string } }) {
     const { projects } = useLocalStorage();
-    const [currentDate, setCurrentDate] = useState(new Date());
+    const [currentDate, setCurrentDate] = useState(() => new Date());
+
+    useEffect(() => {
+        const now = new Date();
+        setCurrentDate(now);
+    }, []);
+
     const [showTaskForm, setShowTaskForm] = useState(false);
     const [viewMode, setViewMode] = useState<'weeks' | 'months'>('weeks');
-    const startDate = startOfMonth(currentDate);
-    const endDate = endOfMonth(currentDate);
+
+    const startDate = viewMode === 'weeks'
+        ? startOfMonth(currentDate)
+        : startOfMonth(currentDate);
+
+    const endDate = viewMode === 'weeks'
+        ? endOfMonth(currentDate)
+        : endOfMonth(currentDate);
+
+    useEffect(() => {
+        console.log("Current date for timeline:", currentDate);
+        console.log("Start date:", startDate);
+        console.log("End date:", endDate);
+    }, [currentDate, startDate, endDate]);
 
     const project = projects.find(p => p.id === parseInt(params.id));
 
@@ -47,8 +65,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                                 <button
                                     onClick={() => setViewMode('weeks')}
                                     className={`px-3 py-1 rounded-md text-sm ${viewMode === 'weeks'
-                                            ? 'bg-blue-500 text-white'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
                                     Weeks
@@ -56,8 +74,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                                 <button
                                     onClick={() => setViewMode('months')}
                                     className={`px-3 py-1 rounded-md text-sm ${viewMode === 'months'
-                                            ? 'bg-blue-500 text-white'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
                                     Months

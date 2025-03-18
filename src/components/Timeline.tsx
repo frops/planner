@@ -1,6 +1,7 @@
 'use client';
 
 import { format, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, differenceInMilliseconds, isSameDay, eachDayOfInterval, isEqual } from 'date-fns';
+import { ru } from 'date-fns/locale';
 import { useLocalStorage } from '@/components/LocalStorageProvider';
 import { useEffect } from 'react';
 
@@ -66,6 +67,7 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
     useEffect(() => {
         console.log("Visible range:", visibleRangeStart, "to", visibleRangeEnd, "Total days:", totalVisibleDays);
         console.log("Period ranges:", periodRanges);
+        console.log("Today date:", today);
 
         if (tasks) {
             const taskDebug = tasks.map(t => {
@@ -85,7 +87,18 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
         }
     }, [periodRanges, tasks, viewMode]);
 
+    // Получаем актуальную дату, используя свежий объект
     const today = new Date();
+
+    // Убеждаемся, что это действительно сегодняшняя дата без кеширования
+    today.setHours(0, 0, 0, 0);
+
+    // Отладочный вывод для проверки корректности текущей даты
+    useEffect(() => {
+        console.log("Today real date:", new Date());
+        console.log("Today in component:", today);
+        console.log("Formatted with RU locale:", format(today, 'd MMM', { locale: ru }));
+    }, []);
 
     const filteredTasks = projectId
         ? tasks.filter(task => task.projectId === projectId)
@@ -122,12 +135,16 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
             {/* Today line - fixed position relative to content */}
             {isTodayVisible && (
                 <div
-                    className="absolute top-0 bottom-0 w-px bg-red-500 z-10"
+                    className="absolute top-0 bottom-0 w-px bg-red-600 z-10"
                     style={{
                         left: `${todayPositionPx}px`,
+                        opacity: '0.8' // Делаем линию темнее
                     }}
                 >
-                    <div className="absolute top-0 -ml-[3px] w-[7px] h-[7px] rounded-full bg-red-500"></div>
+                    <div className="absolute top-0 -ml-[3px] w-[7px] h-[7px] rounded-full bg-red-600"></div>
+                    <div className="absolute top-2 -ml-[25px] bg-red-600 text-white text-xs px-1 py-0.5 rounded whitespace-nowrap">
+                        {format(today, 'd MMM', { locale: ru })}
+                    </div>
                 </div>
             )}
 
@@ -151,10 +168,10 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                     return (
                         <div
                             key={day.toISOString()}
-                            className="absolute top-0 bottom-0 w-px bg-gray-100 z-5"
+                            className="absolute top-0 bottom-0 w-px bg-gray-200 z-5"
                             style={{
                                 left: `${dayPositionPx}px`,
-                                opacity: '0.5' // Делаем линии еле видимыми
+                                opacity: '0.7' // Делаем линии чуть темнее
                             }}
                         />
                     );
@@ -167,13 +184,13 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                     // Форматирование заголовков периодов
                     let headerText = '';
                     if (viewMode === 'weeks') {
-                        // Формат "Мар 3 - Мар 9", убедимся, что месяц с заглавной буквы
-                        const startFormatted = format(periodStart, 'MMM d');
-                        const endFormatted = format(periodEnd, 'MMM d');
+                        // Формат "Мар 3 - Мар 9", убедимся, что месяц с заглавной буквы и используем русскую локаль
+                        const startFormatted = format(periodStart, 'MMM d', { locale: ru });
+                        const endFormatted = format(periodEnd, 'MMM d', { locale: ru });
                         headerText = `${startFormatted} - ${endFormatted}`;
                     } else {
-                        // Формат "Мар 2024", убедимся, что месяц с заглавной буквы
-                        headerText = format(periodStart, 'MMM yyyy');
+                        // Формат "Мар 2024", убедимся, что месяц с заглавной буквы и используем русскую локаль
+                        headerText = format(periodStart, 'MMM yyyy', { locale: ru });
                     }
 
                     return (
@@ -229,7 +246,7 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                                 <div className="font-mono text-xs whitespace-nowrap truncate px-1">
                                     {task.code}: {task.title}
                                     <span className="ml-2 text-xs opacity-75">
-                                        ({format(taskStart, 'MMM d')} - {format(taskEnd, 'MMM d')})
+                                        ({format(taskStart, 'MMM d', { locale: ru })} - {format(taskEnd, 'MMM d', { locale: ru })})
                                     </span>
                                 </div>
                             </div>
