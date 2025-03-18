@@ -63,6 +63,16 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
         return -1; // Не должно происходить
     };
 
+    // Для режима недель: функция для расчета позиции дня с равномерным распределением
+    const getDayPosition = (day: Date) => {
+        // Определяем количество дней от начала видимого диапазона
+        const daysDiff = differenceInDays(day, visibleRangeStart);
+        // Общее количество дней в видимом диапазоне
+        const totalDays = differenceInDays(visibleRangeEnd, visibleRangeStart);
+        // Равномерно распределяем позицию дня по всей ширине таймлайна
+        return (daysDiff / totalDays) * periods.length;
+    };
+
     // Отладочный вывод
     useEffect(() => {
         console.log("Visible range:", visibleRangeStart, "to", visibleRangeEnd, "Total days:", totalVisibleDays);
@@ -124,7 +134,7 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
     const taskContainerHeight = filteredTasks.length * 30 + 10; // 30px на задачу + отступ
 
     // Рассчитываем позицию сегодняшней линии
-    const todayPosition = getExactPeriodPosition(today);
+    const todayPosition = viewMode === 'weeks' ? getDayPosition(today) : getExactPeriodPosition(today);
     const todayPositionPx = todayPosition * periodWidth;
 
     // Проверяем, находится ли сегодняшний день в видимом диапазоне
@@ -142,7 +152,7 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                     }}
                 >
                     <div className="absolute top-0 -ml-[3px] w-[7px] h-[7px] rounded-full bg-red-600"></div>
-                    <div className="absolute top-2 -ml-[25px] bg-red-600 text-white text-xs px-1 py-0.5 rounded whitespace-nowrap">
+                    <div className="absolute -top-6 -ml-[25px] bg-red-600 text-white text-xs px-1 py-0.5 rounded whitespace-nowrap">
                         {format(today, 'd MMM', { locale: ru })}
                     </div>
                 </div>
@@ -159,19 +169,24 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
             >
                 {/* Day separator lines for week mode */}
                 {viewMode === 'weeks' && allDaysInRange.map((day, index) => {
-                    // Пропускаем первый день, так как он совпадает с левой границей периода
+                    // Получаем день недели (0 - воскресенье, 1 - понедельник, ...)
+                    const dayOfWeek = day.getDay();
+                    // Начало новой недели (понедельник) выделяем сильнее
+                    const isWeekStart = dayOfWeek === 1;
+
+                    // Пропускаем первый день, так как он совпадает с левой границей первого периода
                     if (index === 0) return null;
 
-                    const dayPosition = getExactPeriodPosition(day);
+                    const dayPosition = getDayPosition(day);
                     const dayPositionPx = dayPosition * periodWidth;
 
                     return (
                         <div
                             key={day.toISOString()}
-                            className="absolute top-0 bottom-0 w-px bg-gray-200 z-5"
+                            className={`absolute top-0 bottom-0 w-px ${isWeekStart ? 'bg-gray-400' : 'bg-gray-200'} z-5`}
                             style={{
                                 left: `${dayPositionPx}px`,
-                                opacity: '0.7' // Делаем линии чуть темнее
+                                opacity: isWeekStart ? '0.9' : '0.7'
                             }}
                         />
                     );
@@ -196,7 +211,7 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                     return (
                         <div
                             key={periodStart.toISOString()}
-                            className="timeline-cell border-r border-gray-200 p-2"
+                            className={`timeline-cell border-r ${viewMode === 'weeks' ? 'border-gray-400' : 'border-gray-200'} p-2`}
                         >
                             <div className="text-sm font-semibold mb-2 sticky top-0 bg-white">
                                 {headerText}
@@ -223,8 +238,8 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                         }
 
                         // Calculate exact fractional positions
-                        const startPos = getExactPeriodPosition(taskStart);
-                        const endPos = getExactPeriodPosition(taskEnd);
+                        const startPos = viewMode === 'weeks' ? getDayPosition(taskStart) : getExactPeriodPosition(taskStart);
+                        const endPos = viewMode === 'weeks' ? getDayPosition(taskEnd) : getExactPeriodPosition(taskEnd);
 
                         // Convert positions to pixels
                         const left = startPos * periodWidth;
