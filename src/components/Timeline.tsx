@@ -65,12 +65,18 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
 
     // Для режима недель: функция для расчета позиции дня с равномерным распределением
     const getDayPosition = (day: Date) => {
-        // Определяем количество дней от начала видимого диапазона
+        // Вычисляем количество полных дней от начала видимого диапазона
         const daysDiff = differenceInDays(day, visibleRangeStart);
-        // Общее количество дней в видимом диапазоне
-        const totalDays = differenceInDays(visibleRangeEnd, visibleRangeStart);
-        // Равномерно распределяем позицию дня по всей ширине таймлайна
-        return (daysDiff / totalDays) * periods.length;
+
+        // В режиме недель, каждую неделю делим ровно на 7 частей
+        // Определяем, в какой неделе находится день (целочисленное деление)
+        const weekIndex = Math.floor(daysDiff / 7);
+
+        // Определяем день внутри недели (0-6)
+        const dayInWeek = daysDiff % 7;
+
+        // Возвращаем индекс недели + дробную часть, соответствующую положению дня в неделе
+        return weekIndex + (dayInWeek / 7);
     };
 
     // Отладочный вывод
@@ -168,28 +174,30 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                 }}
             >
                 {/* Day separator lines for week mode */}
-                {viewMode === 'weeks' && allDaysInRange.map((day, index) => {
-                    // Получаем день недели (0 - воскресенье, 1 - понедельник, ...)
-                    const dayOfWeek = day.getDay();
-                    // Начало новой недели (понедельник) выделяем сильнее
-                    const isWeekStart = dayOfWeek === 1;
+                {viewMode === 'weeks' && periods.map((period, periodIndex) => {
+                    // Получаем начало и конец недели
+                    const weekStart = periodRanges[periodIndex].periodStart;
 
-                    // Пропускаем первый день, так как он совпадает с левой границей первого периода
-                    if (index === 0) return null;
+                    // Создаем полоски для 7 дней недели
+                    return Array.from({ length: 7 }).map((_, dayIndex) => {
+                        // Позиция внутри недели (от 0/7 до 6/7)
+                        const dayPosition = periodIndex + (dayIndex / 7);
+                        const dayPositionPx = dayPosition * periodWidth;
 
-                    const dayPosition = getDayPosition(day);
-                    const dayPositionPx = dayPosition * periodWidth;
+                        // Первая полоска (начало недели/понедельник) совпадает с границей, делаем ее более заметной
+                        const isFirstDayOfWeek = dayIndex === 0;
 
-                    return (
-                        <div
-                            key={day.toISOString()}
-                            className={`absolute top-0 bottom-0 w-px ${isWeekStart ? 'bg-gray-400' : 'bg-gray-200'} z-5`}
-                            style={{
-                                left: `${dayPositionPx}px`,
-                                opacity: isWeekStart ? '0.9' : '0.7'
-                            }}
-                        />
-                    );
+                        return (
+                            <div
+                                key={`${periodIndex}-${dayIndex}`}
+                                className={`absolute top-0 bottom-0 w-px ${isFirstDayOfWeek ? 'bg-gray-500' : 'bg-gray-200'} z-5`}
+                                style={{
+                                    left: `${dayPositionPx}px`,
+                                    opacity: isFirstDayOfWeek ? '1' : '0.7'
+                                }}
+                            />
+                        );
+                    });
                 })}
 
                 {periods.map((period, index) => {
@@ -211,7 +219,12 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                     return (
                         <div
                             key={periodStart.toISOString()}
-                            className={`timeline-cell border-r ${viewMode === 'weeks' ? 'border-gray-400' : 'border-gray-200'} p-2`}
+                            className="timeline-cell p-2"
+                            style={{
+                                borderRight: viewMode === 'weeks'
+                                    ? '2px solid rgb(107 114 128)' // bg-gray-500 
+                                    : '1px solid rgb(229 231 235)' // bg-gray-200
+                            }}
                         >
                             <div className="text-sm font-semibold mb-2 sticky top-0 bg-white">
                                 {headerText}
@@ -237,9 +250,28 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                             return null;
                         }
 
-                        // Calculate exact fractional positions
-                        const startPos = viewMode === 'weeks' ? getDayPosition(taskStart) : getExactPeriodPosition(taskStart);
-                        const endPos = viewMode === 'weeks' ? getDayPosition(taskEnd) : getExactPeriodPosition(taskEnd);
+                        // Calculate exact fractional positions for weeks mode
+                        let startPos, endPos;
+
+                        if (viewMode === 'weeks') {
+                            // Используем функцию getDayPosition для расчета точного положения в неделе
+                            startPos = getDayPosition(taskStart);
+                            endPos = getDayPosition(taskEnd);
+
+                            // Если задача заканчивается за пределами видимого диапазона, ограничиваем
+                            if (taskEnd > visibleRangeEnd) {
+                                endPos = periods.length;
+                            }
+
+                            // Если задача начинается до видимого диапазона, ограничиваем
+                            if (taskStart < visibleRangeStart) {
+                                startPos = 0;
+                            }
+                        } else {
+                            // Для режима месяцев используем оригинальную функцию
+                            startPos = getExactPeriodPosition(taskStart);
+                            endPos = getExactPeriodPosition(taskEnd);
+                        }
 
                         // Convert positions to pixels
                         const left = startPos * periodWidth;
