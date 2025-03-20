@@ -1,7 +1,6 @@
 'use client';
 
 import { format, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, differenceInMilliseconds, isSameDay, eachDayOfInterval, isEqual } from 'date-fns';
-import { ru } from 'date-fns/locale';
 import { useLocalStorage } from '@/components/LocalStorageProvider';
 import { useEffect } from 'react';
 
@@ -113,7 +112,7 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
     useEffect(() => {
         console.log("Today real date:", new Date());
         console.log("Today in component:", today);
-        console.log("Formatted with RU locale:", format(today, 'd MMM', { locale: ru }));
+        console.log("Formatted date:", format(today, 'd MMM'));
     }, []);
 
     const filteredTasks = projectId
@@ -151,7 +150,7 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
             {/* Today line - fixed position relative to content */}
             {isTodayVisible && (
                 <div
-                    className="absolute top-0 bottom-0 w-px bg-red-600 z-10"
+                    className="absolute top-10 bottom-0 w-px bg-red-600 z-10"
                     style={{
                         left: `${todayPositionPx}px`,
                         opacity: '0.8' // Делаем линию темнее
@@ -159,7 +158,7 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                 >
                     <div className="absolute top-0 -ml-[3px] w-[7px] h-[7px] rounded-full bg-red-600"></div>
                     <div className="absolute -top-6 -ml-[25px] bg-red-600 text-white text-xs px-1 py-0.5 rounded whitespace-nowrap">
-                        {format(today, 'd MMM', { locale: ru })}
+                        {format(today, 'd MMM')}
                     </div>
                 </div>
             )}
@@ -173,65 +172,75 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                     minHeight: `${taskContainerHeight + 50}px` // Добавляем общую высоту для учета заголовков
                 }}
             >
-                {/* Day separator lines for week mode */}
-                {viewMode === 'weeks' && periods.map((period, periodIndex) => {
-                    // Получаем начало и конец недели
-                    const weekStart = periodRanges[periodIndex].periodStart;
+                {/* Month/Period Headers with clean background */}
+                <div className="absolute top-0 left-0 right-0 h-10 bg-white z-10">
+                    <div className="flex">
+                        {periods.map((period, index) => {
+                            const periodStart = periodRanges[index].periodStart;
+                            const periodEnd = periodRanges[index].periodEnd;
 
-                    // Создаем полоски для 7 дней недели
+                            // Format period headers in English
+                            let headerText = '';
+                            if (viewMode === 'weeks') {
+                                headerText = `${format(periodStart, 'MMM d')} - ${format(periodEnd, 'MMM d')}`;
+                            } else {
+                                headerText = format(periodStart, 'MMMM yyyy');
+                            }
+
+                            return (
+                                <div
+                                    key={periodStart.toISOString()}
+                                    className="text-sm font-semibold flex items-center justify-center"
+                                    style={{
+                                        width: `${periodWidth}px`,
+                                    }}
+                                >
+                                    {headerText}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Day separator lines for week mode - starting after the header area */}
+                {viewMode === 'weeks' && periods.map((period, periodIndex) => {
+                    // Create lines for 7 days of the week
                     return Array.from({ length: 7 }).map((_, dayIndex) => {
-                        // Позиция внутри недели (от 0/7 до 6/7)
+                        // Position within the week (from 0/7 to 6/7)
                         const dayPosition = periodIndex + (dayIndex / 7);
                         const dayPositionPx = dayPosition * periodWidth;
 
-                        // Первая полоска (начало недели/понедельник) совпадает с границей, делаем ее более заметной
+                        // First line (start of week/Monday) coincides with border, make it more visible
                         const isFirstDayOfWeek = dayIndex === 0;
+                        const isWeekend = dayIndex >= 5;
 
                         return (
                             <div
                                 key={`${periodIndex}-${dayIndex}`}
-                                className={`absolute top-0 bottom-0 w-px ${isFirstDayOfWeek ? 'bg-gray-500' : 'bg-gray-200'} z-5`}
+                                className={`absolute top-10 bottom-0 w-px ${isFirstDayOfWeek
+                                        ? 'bg-gray-600'
+                                        : isWeekend
+                                            ? 'bg-gray-300'
+                                            : 'bg-gray-200'
+                                    } z-5`}
                                 style={{
                                     left: `${dayPositionPx}px`,
-                                    opacity: isFirstDayOfWeek ? '1' : '0.7'
                                 }}
                             />
                         );
                     });
                 })}
 
-                {periods.map((period, index) => {
-                    const periodStart = periodRanges[index].periodStart;
-                    const periodEnd = periodRanges[index].periodEnd;
-
-                    // Форматирование заголовков периодов
-                    let headerText = '';
-                    if (viewMode === 'weeks') {
-                        // Формат "Мар 3 - Мар 9", убедимся, что месяц с заглавной буквы и используем русскую локаль
-                        const startFormatted = format(periodStart, 'MMM d', { locale: ru });
-                        const endFormatted = format(periodEnd, 'MMM d', { locale: ru });
-                        headerText = `${startFormatted} - ${endFormatted}`;
-                    } else {
-                        // Формат "Мар 2024", убедимся, что месяц с заглавной буквы и используем русскую локаль
-                        headerText = format(periodStart, 'MMM yyyy', { locale: ru });
-                    }
-
-                    return (
-                        <div
-                            key={periodStart.toISOString()}
-                            className="timeline-cell p-2"
-                            style={{
-                                borderRight: viewMode === 'weeks'
-                                    ? '2px solid rgb(107 114 128)' // bg-gray-500 
-                                    : '1px solid rgb(229 231 235)' // bg-gray-200
-                            }}
-                        >
-                            <div className="text-sm font-semibold mb-2 sticky top-0 bg-white">
-                                {headerText}
-                            </div>
-                        </div>
-                    );
-                })}
+                {/* Monthly separator lines */}
+                {viewMode === 'months' && periods.map((period, index) => (
+                    <div
+                        key={`month-line-${index}`}
+                        className="absolute top-10 bottom-0 w-px bg-gray-600 z-5"
+                        style={{
+                            left: `${index * periodWidth}px`,
+                        }}
+                    />
+                ))}
 
                 {/* Tasks container */}
                 <div
@@ -293,7 +302,7 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                                 <div className="font-mono text-xs whitespace-nowrap truncate px-1">
                                     {task.code}: {task.title}
                                     <span className="ml-2 text-xs opacity-75">
-                                        ({format(taskStart, 'MMM d', { locale: ru })} - {format(taskEnd, 'MMM d', { locale: ru })})
+                                        ({format(taskStart, 'MMM d')} - {format(taskEnd, 'MMM d')})
                                     </span>
                                 </div>
                             </div>
