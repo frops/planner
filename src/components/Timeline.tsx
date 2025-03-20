@@ -1,6 +1,6 @@
 'use client';
 
-import { format, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, differenceInMilliseconds, isSameDay, eachDayOfInterval, isEqual } from 'date-fns';
+import { format, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, differenceInDays, differenceInMilliseconds, isSameDay, eachDayOfInterval, isEqual, addDays } from 'date-fns';
 import { useLocalStorage } from '@/components/LocalStorageProvider';
 import { useEffect } from 'react';
 
@@ -145,15 +145,34 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
     // Проверяем, находится ли сегодняшний день в видимом диапазоне
     const isTodayVisible = today >= visibleRangeStart && today <= visibleRangeEnd;
 
+    // Get all visible days for day labels when in week mode
+    const allVisibleDays = viewMode === 'weeks'
+        ? eachDayOfInterval({ start: visibleRangeStart, end: visibleRangeEnd })
+        : [];
+
+    // Find today's index in all days array
+    const todayIndex = allVisibleDays.findIndex(day => isSameDay(day, today));
+
     return (
         <div className="relative overflow-x-auto">
-            {/* Today line - fixed position relative to content */}
+            {/* Today's background highlight - displayed as a light green background */}
+            {isTodayVisible && viewMode === 'weeks' && (
+                <div
+                    className="absolute top-10 bottom-0 bg-green-50 z-0"
+                    style={{
+                        left: `${Math.floor(todayPosition) * periodWidth + (todayPosition - Math.floor(todayPosition)) * periodWidth}px`,
+                        width: `${periodWidth / 7}px`, // Width of one day
+                    }}
+                />
+            )}
+
+            {/* Today's vertical line */}
             {isTodayVisible && (
                 <div
                     className="absolute top-10 bottom-0 w-px bg-red-600 z-10"
                     style={{
                         left: `${todayPositionPx}px`,
-                        opacity: '0.8' // Делаем линию темнее
+                        opacity: '0.8'
                     }}
                 >
                     <div className="absolute top-0 -ml-[3px] w-[7px] h-[7px] rounded-full bg-red-600"></div>
@@ -169,11 +188,12 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                 style={{
                     gridTemplateColumns: `repeat(${periods.length}, minmax(${periodWidth}px, 1fr))`,
                     minWidth: `${totalGridWidth}px`,
-                    minHeight: `${taskContainerHeight + 50}px` // Добавляем общую высоту для учета заголовков
+                    minHeight: `${taskContainerHeight + 50}px`
                 }}
             >
                 {/* Month/Period Headers with clean background */}
                 <div className="absolute top-0 left-0 right-0 h-10 bg-white z-10">
+                    {/* Month headers */}
                     <div className="flex">
                         {periods.map((period, index) => {
                             const periodStart = periodRanges[index].periodStart;
@@ -200,6 +220,27 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
                             );
                         })}
                     </div>
+
+                    {/* Day numbers in week mode */}
+                    {viewMode === 'weeks' && (
+                        <div className="flex absolute bottom-0 left-0 right-0 h-5">
+                            {allVisibleDays.map((day, index) => (
+                                <div
+                                    key={day.toISOString()}
+                                    className="text-xs flex items-center justify-center"
+                                    style={{
+                                        width: `${periodWidth / 7}px`,
+                                        fontWeight: isSameDay(day, today) ? 'bold' : 'normal'
+                                    }}
+                                >
+                                    {format(day, 'd')}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Horizontal line separating header from content */}
+                    <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-300 z-10"></div>
                 </div>
 
                 {/* Day separator lines for week mode - starting after the header area */}
@@ -212,16 +253,11 @@ export function Timeline({ startDate, endDate, projectId, viewMode }: TimelinePr
 
                         // First line (start of week/Monday) coincides with border, make it more visible
                         const isFirstDayOfWeek = dayIndex === 0;
-                        const isWeekend = dayIndex >= 5;
 
                         return (
                             <div
                                 key={`${periodIndex}-${dayIndex}`}
-                                className={`absolute top-10 bottom-0 w-px ${isFirstDayOfWeek
-                                        ? 'bg-gray-600'
-                                        : isWeekend
-                                            ? 'bg-gray-300'
-                                            : 'bg-gray-200'
+                                className={`absolute top-10 bottom-0 w-px ${isFirstDayOfWeek ? 'bg-gray-600' : 'bg-gray-200'
                                     } z-5`}
                                 style={{
                                     left: `${dayPositionPx}px`,
